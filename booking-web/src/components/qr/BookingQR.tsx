@@ -120,7 +120,7 @@ export default function BookingQR({ url, salonName, phone }: BookingQRProps) {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <button 
           onClick={() => { navigator.clipboard.writeText(url); alert('Link copied!') }}
           className="col-span-2 py-2 px-4 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium rounded-lg transition-colors"
