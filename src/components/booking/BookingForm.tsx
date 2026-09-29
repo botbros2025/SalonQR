@@ -10,7 +10,7 @@ type Staff = any
 
 interface BookingFormProps {
   branch: any
-  services: Service[]
+  services: Service[] 
   staff: Staff[]
 }
 
