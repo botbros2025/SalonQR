@@ -415,8 +415,8 @@ export default function BookingForm({ branch, services, staff }: BookingFormProp
                       key={categoryName}
                       onClick={() => setActiveCategory(categoryName)}
                       className={`whitespace-nowrap px-1 py-3 text-xs font-bold tracking-wider uppercase transition-colors relative ${currentCategory === categoryName
-                          ? 'text-[#2C2A29]'
-                          : 'text-[#736B66] hover:text-[#2C2A29]'
+                        ? 'text-[#2C2A29]'
+                        : 'text-[#736B66] hover:text-[#2C2A29]'
                         }`}
                     >
                       {categoryName}
