@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Phone, Check, ArrowRight, ArrowLeft, Calendar as CalendarIcon, Clock } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Phone, Check, ArrowRight, ArrowLeft, Calendar as CalendarIcon, Clock, Download } from 'lucide-react'
 import { getStaffAppointments, createAppointment } from '@/app/actions/booking'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
 
 // Types (would normally be imported)
 type Service = any
@@ -33,6 +35,8 @@ export default function BookingForm({ branch, services, staff }: BookingFormProp
 
   const [appointments, setAppointments] = useState<any[]>([])
   const [isLoadingSlots, setIsLoadingSlots] = useState(false)
+  
+  const receiptPrintRef = useRef<HTMLDivElement>(null)
 
   // Future-proofing for multi-booking (e.g. classes, group sessions)
   // Set to >1 if the salon supports multiple concurrent clients per slot
@@ -164,6 +168,39 @@ export default function BookingForm({ branch, services, staff }: BookingFormProp
       alert('Failed to book appointment. Please try again.');
     }
   }
+
+  const downloadReceiptImage = async () => {
+    if (!receiptPrintRef.current) return;
+    
+    // Temporarily make it visible for html2canvas
+    receiptPrintRef.current.style.display = 'block';
+    const canvas = await html2canvas(receiptPrintRef.current, { scale: 3, backgroundColor: '#ffffff', useCORS: true });
+    receiptPrintRef.current.style.display = 'none';
+
+    const image = canvas.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = image;
+    a.download = `${branch.name.replace(/\s+/g, '')}-Booking-${bookingId}.png`;
+    a.click();
+  };
+
+  const downloadReceiptPDF = async () => {
+    if (!receiptPrintRef.current) return;
+
+    // Temporarily make it visible for html2canvas
+    receiptPrintRef.current.style.display = 'block';
+    const canvas = await html2canvas(receiptPrintRef.current, { scale: 3, backgroundColor: '#ffffff', useCORS: true });
+    receiptPrintRef.current.style.display = 'none';
+
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'px',
+      format: [canvas.width / 3, canvas.height / 3]
+    });
+    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 3, canvas.height / 3);
+    pdf.save(`${branch.name.replace(/\s+/g, '')}-Booking-${bookingId}.pdf`);
+  };
 
   const handlePrevDay = () => {
     const d = new Date(selectedDate || getTodayDateString());
@@ -305,9 +342,94 @@ export default function BookingForm({ branch, services, staff }: BookingFormProp
 
   if (step === 'confirmed') {
     return (
-      <div className="min-h-screen bg-[#FCFBF8] text-[#2C2A29] font-sans selection:bg-[#9A7B4F] selection:text-white flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-500 text-center">
-          <div className="w-16 h-16 bg-[#E6F4EA] text-[#1E8E3E] rounded-full flex items-center justify-center mx-auto mb-6">
+      <div className="min-h-screen bg-[#FCFBF8] text-[#2C2A29] font-sans selection:bg-[#9A7B4F] selection:text-white flex flex-col items-center justify-center p-6 pb-24 relative overflow-hidden">
+        
+        {/* HIDDEN PROFESSIONAL RECEIPT TEMPLATE FOR PDF & IMAGE DOWNLOAD */}
+        <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
+          <div ref={receiptPrintRef} style={{ display: 'none', width: '800px', backgroundColor: '#ffffff', padding: '64px', borderTop: '16px solid #9A7B4F', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #E5E0DB', paddingBottom: '32px', marginBottom: '32px' }}>
+              <div>
+                <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: '#2C2A29', margin: 0, fontFamily: 'serif' }}>{branch.name}</h1>
+                <p style={{ fontSize: '18px', color: '#736B66', margin: '8px 0 0 0' }}>{branch.address}, {branch.city}</p>
+                {branch.phone && <p style={{ fontSize: '18px', color: '#736B66', margin: 0 }}>{branch.phone}</p>}
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <p style={{ fontSize: '14px', fontWeight: 'bold', letterSpacing: '0.2em', color: '#9A7B4F', margin: '0 0 8px 0', textTransform: 'uppercase' }}>Booking Receipt</p>
+                <p style={{ fontSize: '20px', fontFamily: 'monospace', color: '#2C2A29', margin: 0 }}>{bookingId}</p>
+                <p style={{ fontSize: '14px', color: '#736B66', margin: '4px 0 0 0' }}>Generated: {new Date().toLocaleDateString()}</p>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px', marginBottom: '48px' }}>
+              <div>
+                <p style={{ fontSize: '12px', fontWeight: 'bold', letterSpacing: '0.15em', color: '#736B66', textTransform: 'uppercase', marginBottom: '8px' }}>Client Details</p>
+                <p style={{ fontSize: '24px', fontFamily: 'serif', color: '#2C2A29', margin: 0 }}>{customerName}</p>
+                <p style={{ fontSize: '18px', color: '#736B66', margin: '4px 0 0 0' }}>{customerPhone}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: '12px', fontWeight: 'bold', letterSpacing: '0.15em', color: '#736B66', textTransform: 'uppercase', marginBottom: '16px' }}>Appointment Details</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                  <CalendarIcon color="#9A7B4F" size={20} />
+                  <p style={{ fontSize: '20px', fontWeight: 500, color: '#2C2A29', margin: 0 }}>
+                    {selectedDate ? new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''}
+                  </p>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <Clock color="#9A7B4F" size={20} />
+                  <p style={{ fontSize: '20px', fontWeight: 500, color: '#2C2A29', margin: 0 }}>
+                    {selectedTime} • {selectedStaff === 'any' ? 'First Available Stylist' : (selectedStaff as Staff)?.name || 'Stylist'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '48px' }}>
+              <p style={{ fontSize: '12px', fontWeight: 'bold', letterSpacing: '0.15em', color: '#736B66', textTransform: 'uppercase', marginBottom: '16px' }}>Services Booked</p>
+              <div style={{ backgroundColor: '#FCFBF8', borderRadius: '12px', border: '1px solid #E5E0DB', overflow: 'hidden' }}>
+                <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+                  <thead style={{ backgroundColor: '#F2E5D4', color: '#8F6A44' }}>
+                    <tr>
+                      <th style={{ padding: '16px 24px', fontSize: '12px', fontWeight: 'bold', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Service</th>
+                      <th style={{ padding: '16px 24px', fontSize: '12px', fontWeight: 'bold', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Duration</th>
+                      <th style={{ padding: '16px 24px', fontSize: '12px', fontWeight: 'bold', letterSpacing: '0.1em', textTransform: 'uppercase', textAlign: 'right' }}>Price</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedServices.map((service, idx) => (
+                      <tr key={idx} style={{ borderBottom: idx < selectedServices.length - 1 ? '1px solid #E5E0DB' : 'none' }}>
+                        <td style={{ padding: '20px 24px', fontFamily: 'serif', fontSize: '18px', color: '#2C2A29' }}>{service.name}</td>
+                        <td style={{ padding: '20px 24px', color: '#736B66' }}>{formatDuration(service.duration_minutes)}</td>
+                        <td style={{ padding: '20px 24px', fontFamily: 'serif', fontSize: '18px', color: '#2C2A29', textAlign: 'right' }}>₹{service.price}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '2px solid #E5E0DB', paddingTop: '32px' }}>
+              <div style={{ width: '50%', textAlign: 'right' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <p style={{ color: '#736B66', fontSize: '18px', margin: 0 }}>Total Duration</p>
+                  <p style={{ color: '#2C2A29', fontSize: '18px', fontWeight: 500, margin: 0 }}>{formatDuration(selectedServices.reduce((sum, s) => sum + (s.duration_minutes || 0), 0))}</p>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <p style={{ color: '#2C2A29', fontSize: '24px', fontWeight: 'bold', margin: 0 }}>Total Amount</p>
+                  <p style={{ color: '#9A7B4F', fontSize: '36px', fontFamily: 'serif', fontWeight: 'bold', margin: 0 }}>₹{selectedServices.reduce((total, s) => total + (Number(s.price) || 0), 0)}</p>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '64px', textAlign: 'center', color: '#736B66', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <p style={{ fontStyle: 'italic', marginBottom: '8px', margin: 0 }}>Thank you for choosing {branch.name}. We look forward to seeing you!</p>
+              <p style={{ fontSize: '10px', letterSpacing: '0.2em', textTransform: 'uppercase', fontWeight: 'bold', color: '#D1CCC8', margin: '8px 0 0 0' }}>POWERED BY SALONQR</p>
+            </div>
+          </div>
+        </div>
+        {/* END HIDDEN RECEIPT TEMPLATE */}
+
+        <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-500 text-center relative z-10">
+          <div className="w-16 h-16 bg-[#E6F4EA] text-[#1E8E3E] rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
             <Check className="w-8 h-8" />
           </div>
 
@@ -317,12 +439,12 @@ export default function BookingForm({ branch, services, staff }: BookingFormProp
             <span className="italic text-[#9A7B4F]">{customerName}.</span>
           </h2>
 
-          <div className="bg-white border border-[#E5E0DB] text-left p-6 mb-6">
+          <div className="bg-white border border-[#E5E0DB] text-left p-6 mb-6 rounded-xl shadow-sm">
             <div className="flex justify-between items-start mb-1">
               <p className="font-serif font-normal text-xl text-[#2C2A29]">{selectedServices.map(s => s.name).join(', ')}</p>
               <p className="font-serif font-normal text-xl text-[#2C2A29] pl-4 whitespace-nowrap">₹{selectedServices.reduce((total, s) => total + (Number(s.price) || 0), 0)}</p>
             </div>
-            <p className="text-xs font-normal text-[#736B66] mb-6">{formatDuration(selectedServices.reduce((sum, s) => sum + (s.duration_minutes || 0), 0))} • Indiranagar Studio</p>
+            <p className="text-xs font-normal text-[#736B66] mb-6">{formatDuration(selectedServices.reduce((sum, s) => sum + (s.duration_minutes || 0), 0))} • {branch.name}</p>
 
             <div className="space-y-4">
               <div className="flex items-center gap-3 text-sm text-[#736B66]">
@@ -331,7 +453,7 @@ export default function BookingForm({ branch, services, staff }: BookingFormProp
               </div>
               <div className="flex items-center gap-3 text-sm text-[#736B66] pb-6 border-b border-[#E5E0DB]">
                 <Clock className="w-4 h-4" />
-                <span className="font-normal">{selectedTime} • {selectedStaff === 'any' ? 'Priya' : (selectedStaff as Staff)?.name || 'Stylist'}</span>
+                <span className="font-normal">{selectedTime} • {selectedStaff === 'any' ? 'Anyone Available' : (selectedStaff as Staff)?.name || 'Stylist'}</span>
               </div>
             </div>
 
@@ -341,18 +463,34 @@ export default function BookingForm({ branch, services, staff }: BookingFormProp
             </div>
           </div>
 
+          {/* Action Buttons */}
+          <div className="flex gap-3 mb-6">
+            <button
+              onClick={downloadReceiptImage}
+              className="flex-1 bg-[#FDFBF7] border border-[#E5E0DB] hover:bg-white text-[#2C2A29] text-xs font-bold tracking-[0.1em] px-4 py-4 uppercase flex items-center justify-center gap-2 transition-colors rounded-xl shadow-sm"
+            >
+              <Download className="w-4 h-4" /> Image
+            </button>
+            <button
+              onClick={downloadReceiptPDF}
+              className="flex-1 bg-[#FDFBF7] border border-[#E5E0DB] hover:bg-white text-[#2C2A29] text-xs font-bold tracking-[0.1em] px-4 py-4 uppercase flex items-center justify-center gap-2 transition-colors rounded-xl shadow-sm"
+            >
+              <Download className="w-4 h-4" /> PDF
+            </button>
+          </div>
+
           <a
             href={`tel:${branch.phone}`}
-            className="bg-[#332E2C] hover:bg-black text-white text-xs font-bold tracking-[0.1em] px-8 py-4 w-full uppercase flex items-center justify-center gap-3 transition-colors mb-4"
+            className="bg-[#332E2C] hover:bg-black text-white text-xs font-bold tracking-[0.1em] px-8 py-4 w-full uppercase flex items-center justify-center gap-3 transition-colors mb-4 rounded-xl shadow-sm"
           >
             <Phone className="w-4 h-4" /> CALL SALON
           </a>
 
           <button
             onClick={() => window.location.reload()}
-            className="text-xs font-normal text-[#736B66] hover:text-[#2C2A29] transition-colors"
+            className="text-xs font-normal text-[#736B66] hover:text-[#2C2A29] transition-colors mt-2"
           >
-            Done
+            Book Another Appointment
           </button>
         </div>
       </div>
