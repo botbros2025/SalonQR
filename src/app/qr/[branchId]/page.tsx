@@ -41,8 +41,8 @@ export default async function QRPage({ params }: PageProps) {
 
   // Determine the base URL (using localhost for development, or your production domain)
   // In a real app, you might use an environment variable like process.env.NEXT_PUBLIC_BASE_URL
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-  const bookingUrl = `${baseUrl}/b/${branch.id}`
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://salon-qr-alpha.vercel.app'
+  const bookingUrl = `${baseUrl}/b/${slug}`
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
@@ -59,7 +59,7 @@ export default async function QRPage({ params }: PageProps) {
       
       <div className="mt-8">
         <a 
-          href={`/b/${branch.id}`}
+          href={`/b/${slug}`}
           className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
         >
           &larr; Back to Booking Page
